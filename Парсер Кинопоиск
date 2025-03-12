@@ -1,0 +1,50 @@
+import requests
+from bs4 import BeautifulSoup
+import json
+
+class KinopoiskParser:
+user_login = 'parshuckowanat'
+    BASE_URL = "https://www.kinopoisk.ru/user/{}/go/"
+
+    def __init__(self, user_id):
+        self.user_id = user_id
+        self.url = self.BASE_URL.format(self.user_id)
+        self.ratings = []
+
+    def fetch_user_data(self):
+        response = requests.get(self.url)
+        if response.status_code != 200:
+            raise Exception(f"Ошибка при запросе страницы, статус: {response.status_code}")
+        return response.text
+
+    def parse_ratings(self, html):
+        soup = BeautifulSoup(html, 'html.parser')
+        entries = soup.find_all('div', class_='item')
+
+        for entry in entries:
+            movie_title = entry.find('a', class_='name').text.strip()
+            movie_rating = entry.find('span', class_='rating').text.strip()
+            self.ratings.append({
+                'title': movie_title,
+                'rating': movie_rating
+            })
+
+    def save_to_json(self, filename):
+        with open(filename, 'w', encoding='utf-8') as json_file:
+            json.dump(self.ratings, json_file, ensure_ascii=False, indent=4)
+
+    def run(self):
+        html = self.fetch_user_data()
+        self.parse_ratings(html)
+        return self.ratings
+
+if __name__ == "__main__":
+    user_id = "76579406"
+    parser = KinopoiskParser(user_id)
+
+    try:
+        parser.run()
+        parser.save_to_json('kinopoisk_ratings.json')
+        print("Результаты парсинга сохранены в kinopoisk_ratings.json")
+    except Exception as e:
+        print(str(e))
